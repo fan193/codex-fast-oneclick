@@ -355,12 +355,47 @@ $desktop = [IO.Path]::GetFullPath([Environment]::GetFolderPath('Desktop'))
 $desktopShortcut = [IO.Path]::GetFullPath((Join-Path $desktop 'Codex.lnk'))
 $oldFastShortcut = [IO.Path]::GetFullPath((Join-Path $desktop 'Codex Fast.lnk'))
 $storeShortcutBackup = Join-Path $versionRoot 'Codex Store.lnk'
+$markerPath = Join-Path $versionRoot 'codex-fast-install.json'
 $shell = New-Object -ComObject WScript.Shell
 
-if (Test-Path -LiteralPath $desktopShortcut) {
+$shortcutExistedBefore = $null
+if (Test-Path -LiteralPath $markerPath) {
+    try {
+        $previousMarker = [IO.File]::ReadAllText($markerPath) | ConvertFrom-Json
+        $shortcutStateProperty = $previousMarker.PSObject.Properties['desktop_shortcut']
+        if ($shortcutStateProperty -and $shortcutStateProperty.Value) {
+            $existedProperty = $shortcutStateProperty.Value.PSObject.Properties['existed_before']
+            if ($existedProperty) {
+                $shortcutExistedBefore = [bool] $existedProperty.Value
+            }
+        }
+    }
+    catch {
+        Write-Warning 'The previous install marker could not be read; shortcut state will be inferred.'
+    }
+}
+
+$desktopShortcutExistsNow = Test-Path -LiteralPath $desktopShortcut
+$alreadyFast = $false
+if ($desktopShortcutExistsNow) {
     $existingShortcut = $shell.CreateShortcut($desktopShortcut)
     $existingTarget = $existingShortcut.TargetPath
     $alreadyFast = $existingTarget -and $existingTarget.StartsWith($destinationBase, [StringComparison]::OrdinalIgnoreCase)
+}
+
+if ($null -eq $shortcutExistedBefore) {
+    if (Test-Path -LiteralPath $storeShortcutBackup) {
+        $shortcutExistedBefore = $true
+    }
+    elseif ($desktopShortcutExistsNow -and -not $alreadyFast) {
+        $shortcutExistedBefore = $true
+    }
+    else {
+        $shortcutExistedBefore = $false
+    }
+}
+
+if ($desktopShortcutExistsNow) {
     if (-not $alreadyFast -and -not (Test-Path -LiteralPath $storeShortcutBackup)) {
         Copy-Item -LiteralPath $desktopShortcut -Destination $storeShortcutBackup
     }
@@ -384,9 +419,12 @@ $marker = [ordered]@{
     destination_app = $destinationApp
     source_asar_sha256 = (Get-FileHash -LiteralPath $sourceAsar -Algorithm SHA256).Hash
     patched_asar_sha256 = (Get-FileHash -LiteralPath $destinationAsar -Algorithm SHA256).Hash
+    desktop_shortcut = [ordered]@{
+        existed_before = [bool] $shortcutExistedBefore
+        backup_saved = Test-Path -LiteralPath $storeShortcutBackup
+    }
     patches = @($patchResults)
 }
-$markerPath = Join-Path $versionRoot 'codex-fast-install.json'
 $markerJson = $marker | ConvertTo-Json -Depth 5
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText($markerPath, $markerJson, $utf8NoBom)
