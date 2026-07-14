@@ -1,6 +1,6 @@
-# Codex Fast 一键配置（Windows 商店版 + 中转 API）
+# Codex Fast 一键配置（Windows 中转站版）
 
-这个工具把 Windows 商店版 Codex 复制到用户可写目录，对副本中的 `app.asar` 应用等长补丁，并把桌面 `Codex` 快捷方式指向补丁后的真正主程序。原始 `WindowsApps` 安装不会被修改。
+这个工具把 Codex 复制到用户可写目录，对副本中的 `app.asar` 应用等长补丁，并把桌面 `Codex` 快捷方式指向补丁后的真正主程序。原始 `WindowsApps` 安装不会被修改。
 
 这是社区维护的非官方开源项目，与 OpenAI 无隶属或背书关系。仓库只包含脚本和文档，不分发 Codex Desktop 或 `app.asar`。
 
